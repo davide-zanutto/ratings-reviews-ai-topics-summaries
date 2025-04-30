@@ -1,0 +1,9 @@
+torch               # or torch==2.0.1+cpu
+transformers
+datasets
+pandas
+scikit-learn
+wandb
+tiktoken
+sentencepiece
+accelerate>=0.26.0

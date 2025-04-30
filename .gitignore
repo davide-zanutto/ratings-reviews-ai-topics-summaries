@@ -1,0 +1,11 @@
+/ratings-reviews
+.env
+/csv
+/outputs
+/json
+*.json
+/__pycache__
+/wandb
+.csv
+/fine-tuned-models
+/artifacts
