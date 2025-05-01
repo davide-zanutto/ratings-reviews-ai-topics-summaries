@@ -1,10 +1,10 @@
 from google.cloud import bigquery
 import os
-from dotenv import load_dotenv
 from openai import AzureOpenAI
-from generateTopics import get_topics
-from generateSummaries import get_reviews_summary
-from assignTopics import get_reviews_labels_LLM_3shots
+from utils.generateTopics import get_topics
+from utils.generateSummaries import get_reviews_summary
+from utils.assignTopics import get_reviews_labels_LLM_3shots
+from utils.getSecret import get_secret
 import pandas as pd
 import logging
 import json
@@ -40,8 +40,9 @@ reviews = [row['review_text'] for row in query_job]
 
 print(f"Processing {len(reviews)} reviews")
 
-load_dotenv()
-api_key = os.getenv("API_KEY")
+project = "923326131319"
+secret  = "derai-azure"
+api_key = get_secret(project, secret)
 
 llm_client = AzureOpenAI(
     api_key=api_key,

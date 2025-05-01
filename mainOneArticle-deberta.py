@@ -1,10 +1,9 @@
 from google.cloud import bigquery
 import os
-from dotenv import load_dotenv
 from openai import AzureOpenAI
-from generateTopics import get_topics
-from generateSummaries import get_reviews_summary
-import pandas as pd
+from utils.generateTopics import get_topics
+from utils.generateSummaries import get_reviews_summary
+from utils.getSecret import get_secret
 import logging
 import json
 import time
@@ -42,13 +41,7 @@ print(f"Processing {len(reviews)} reviews")
 # -----------------------------------------------------------------------------
 # WandB setup
 # -----------------------------------------------------------------------------
-def get_secret(project_id: str, secret_id: str, version_id: str = "latest") -> str:
-    client = secretmanager.SecretManagerServiceClient()
-    name = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
-    response = client.access_secret_version(request={"name": name})
-    return response.payload.data.decode("UTF-8")
 
-# Usage
 project = "923326131319"
 secret  = "WANDB_API_KEY_DAVIDE"
 wandb_api_key = get_secret(project, secret)
@@ -58,8 +51,11 @@ wandb.login(host="https://wandb.mlops.ingka.com", key=wandb_api_key)
 # -----------------------------------------------------------------------------
 # OpenAI client
 # -----------------------------------------------------------------------------
-load_dotenv()
-api_key     = os.getenv("API_KEY")
+
+project = "923326131319"
+secret  = "derai-azure"
+api_key = get_secret(project, secret)
+
 
 llm_client  = AzureOpenAI(
     api_key=api_key,
@@ -115,7 +111,7 @@ model.eval()
 # -----------------------------------------------------------------------------
 # Assign topics to each review
 # -----------------------------------------------------------------------------
-from assignTopics import get_reviews_labels_deBERTa
+from utils.assignTopics import get_reviews_labels_deBERTa
 
 print("Assigning topics to reviews...")
 results = []
