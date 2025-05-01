@@ -8,14 +8,7 @@ st.set_page_config(layout="wide")
 # Constants
 ARTICLES_CSV = 'csv/images.csv'  # Contains article_id, image_url
 REVIEWS_CSV = 'csv/GroundTruthProdArea10kV3.csv'  # Contains article_id, review, all_topics, selected_topics
-CAT_PLACEHOLDERS = [
-    'https://placecats.com/neo/300/300',
-    'https://placekitten.com/300/300',
-    'https://placecats.com/millie_neo/300/300',
-    'https://placecats.com/neo_2/300/300',
-    'https://placecats.com/louie/300/300',
-    'https://placecats.com/millie/300/300'
-]
+PLACEHOLDER = 'https://placehold.co/300x300?text=No+Image+Available'
 
 # Load and cache CSV data
 @st.cache_data
@@ -56,9 +49,9 @@ if st.session_state.page == 'select':
     cols = st.columns(3)
     for i, row in combined.iterrows():
         col = cols[i % 3]
-        # Random cat placeholder if missing URL
+        # placeholder if missing URL
         if pd.isna(row['image_url']) or not row['image_url']:
-            url = random.choice(CAT_PLACEHOLDERS)
+            url = PLACEHOLDER
         else:
             url = row['image_url']
         col.image(url, use_container_width=True)

@@ -10,10 +10,20 @@ from transformers import (
     TrainingArguments,
     Trainer,
 )
+from google.cloud import secretmanager
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-wandb_api_key = os.getenv("WANDB_API_KEY")
+def get_secret(project_id: str, secret_id: str, version_id: str = "latest") -> str:
+    client = secretmanager.SecretManagerServiceClient()
+    name = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
+    response = client.access_secret_version(request={"name": name})
+    return response.payload.data.decode("UTF-8")
+
+# Usage
+project = "923326131319"
+secret  = "WANDB_API_KEY_DAVIDE"
+wandb_api_key = get_secret(project, secret)
 wandb.login(host="https://wandb.mlops.ingka.com", key=wandb_api_key)
 
 def process_dataframe(df: pd.DataFrame) -> pd.DataFrame:

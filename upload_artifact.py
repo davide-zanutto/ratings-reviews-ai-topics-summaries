@@ -8,13 +8,13 @@ run = wandb.init(
 
 # Create a new Artifact to hold CSV files
 artifact = wandb.Artifact(
-    name="ground_truth_20k",    # artifact name
+    name="streamlit",    # artifact name
     type="dataset",           # artifact type (e.g., "dataset")
 )
 
 # Add local CSV files to the artifact
-artifact.add_file("csv/train.csv")  # path to your first CSV
-artifact.add_file("csv/test.csv")  # path to your second CSV
+artifact.add_file("csv/images.csv")  # path to your first CSV
+artifact.add_file("csv/GroundTruthProdArea10kV3.csv")  # path to your second CSV
 
 # Log (upload) the artifact to W&B
 run.log_artifact(artifact)

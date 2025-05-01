@@ -10,7 +10,7 @@ import time
 import sys
 import torch
 from transformers import AutoTokenizer, T5ForConditionalGeneration
-
+from google.cloud import secretmanager
 import wandb 
 
 start_time = time.time()
@@ -71,8 +71,19 @@ print("Summaries OK!")
 FLAN_ARTIFACT_NAME = 'digital-ethics-responsible-ai/topic-assignment/flan-t5-base-finetuned:latest'
 LOCAL_FLAN_DIR     = 'artifacts/flan-t5-base-finetuned:v9'
 
+
+def get_secret(project_id: str, secret_id: str, version_id: str = "latest") -> str:
+    client = secretmanager.SecretManagerServiceClient()
+    name = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
+    response = client.access_secret_version(request={"name": name})
+    return response.payload.data.decode("UTF-8")
+
+# Usage
+project = "923326131319"
+secret  = "WANDB_API_KEY_DAVIDE"
+wandb_api_key = get_secret(project, secret)
+
 if not os.path.isdir(LOCAL_FLAN_DIR):
-    wandb_api_key = os.getenv("WANDB_API_KEY")
     wandb.login(host="https://wandb.mlops.ingka.com", key=wandb_api_key)
     # first run: download from W&B
     run          = wandb.init(job_type="inference")
