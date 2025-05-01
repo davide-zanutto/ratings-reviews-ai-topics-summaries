@@ -102,7 +102,7 @@ model.eval()
 # -----------------------------------------------------------------------------
 # Assign topics to each review via Flan-T5
 # -----------------------------------------------------------------------------
-from assignTopics import get_reviews_labels_flanT5
+from utils.assignTopics import get_reviews_labels_flanT5
 
 print("Assigning topics to reviews...")
 results = []
