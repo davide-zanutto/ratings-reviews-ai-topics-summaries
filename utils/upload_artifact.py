@@ -14,7 +14,8 @@ artifact = wandb.Artifact(
 
 # Add local CSV files to the artifact
 artifact.add_file("csv/images.csv")  # path to your first CSV
-artifact.add_file("csv/GroundTruthProdArea10kV3.csv")  # path to your second CSV
+artifact.add_file("csv/prototype_topics.csv")  # path to your first CSV
+artifact.add_file("csv/prototype_summaries.csv")  # path to your first CSV
 
 # Log (upload) the artifact to W&B
 run.log_artifact(artifact)

@@ -1,4 +1,11 @@
+import random
+
 def get_topics(reviews, llm_client, model):
+
+    # Check if the number of reviews exceeds 2000
+    if len(reviews) > 2000:
+        reviews = random.sample(reviews, 2000)
+
     messages = [
         {
             "role": "system",
