@@ -26,7 +26,6 @@ def load_wandb_artifact():
 # call this once; subsequent reruns will reuse the cached directory
 artifact_dir = load_wandb_artifact()
 
-print(f"Artifact directory: {artifact_dir}")
 
 # Constants
 IMAGES_CSV     = f'{artifact_dir}/images.csv'               # Contains article_id, image_url
