@@ -9,9 +9,14 @@ st.set_page_config(layout="wide")
 
 @st.cache_resource(show_spinner=False)  # caches the return value once per session
 def load_wandb_artifact():
-    project = "923326131319"
-    secret  = "WANDB_API_KEY_DAVIDE"
-    wandb_api_key = get_secret(project, secret)
+
+    try: 
+        wandb_api_key = st.secrets["wandb"]["api_key"]
+    except (KeyError, RuntimeError):
+        project = "923326131319"
+        secret  = "WANDB_API_KEY_DAVIDE"
+        wandb_api_key = get_secret(project, secret)
+        
     wandb.login(host="https://wandb.mlops.ingka.com", key=wandb_api_key)
 
     run = wandb.init(project="topic-assignment", job_type="UI")
