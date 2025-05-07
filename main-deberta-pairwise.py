@@ -12,6 +12,7 @@ import wandb
 from collections import defaultdict
 import csv
 import logging
+import re
 
 start_time = time.time()
 
@@ -29,79 +30,105 @@ table_ref  = f'{project_id}.{dataset_id}.{table_id}'
 project_id = "ingka-feed-student-dev"
 dataset_id = "RR"
 
-# 1) CTE “filtered_articles” finds all art_id’s with ≥25 reviews
-# 2) CTE “random_articles” grabs 25 of those at random
-# 3) Main SELECT joins back to fetch every review for each chosen art_id
-# 1) Pick N random articles with between 25 and 1000 reviews
+table_ref_ai_lab = "ingka-explainableai-tpu-dev.product_range_bb.product_range_info"
+
+# 1) Sample 25 articles that have between 50–500 reviews *and* at least one image
 select_articles_query = f"""
 SELECT
   art_id AS article_id
-FROM `{table_ref}`
+FROM `{table_ref}` AS r
 WHERE
-  franchise = 'set-11'
-  AND content_lang_code = 'en'
+  r.franchise = 'set-11'
+  AND r.content_lang_code = 'en'
+  -- only keep articles for which there exists at least one image row
+  AND EXISTS (
+    SELECT 1
+    FROM `{project_id}.{dataset_id}.product_images` AS pi
+    WHERE pi.local_id = r.art_id
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM `{table_ref_ai_lab}` AS pn
+    WHERE pn.product_id = r.art_id
+  )
 GROUP BY
   art_id
 HAVING
   COUNT(*) BETWEEN 25 AND 1000
 ORDER BY
   RAND()
-LIMIT 25
+LIMIT 30
 """
 
-# 2) Take those article_ids and pull their image URLs (exportable to CSV)
+# 2) Pull every review for those 25 articles, plus a single representative image
 select_reviews_and_images_query = f"""
 WITH random_articles AS (
-  {select_articles_query}
+  {select_articles_query.strip()}
 ),
 one_image AS (
   SELECT
     local_id    AS article_id,
     ANY_VALUE(IMAGE_URL) AS image_url
-  FROM
-    `{project_id}.{dataset_id}.product_images`
+  FROM `{project_id}.{dataset_id}.product_images`
   GROUP BY local_id
-)
+),
+  one_name AS (
+    SELECT
+      product_id       AS article_id,
+      ANY_VALUE(product_name) AS article_name
+    FROM `{table_ref_ai_lab}`
+    GROUP BY product_id
+  )
 SELECT
-  r.art_id                      AS article_id,
+  CAST(r.art_id AS STRING)     AS article_id,
+  oname.article_name           AS article_name,
   CONCAT(r.title, '. ', r.text) AS review_text,
-  IFNULL(oi.image_url, '')      AS image_url
-FROM
-  `{table_ref}` AS r
-  JOIN random_articles ra
-    ON r.art_id = ra.article_id
-  LEFT JOIN one_image AS oi
-    ON r.art_id = oi.article_id
+  IFNULL(oi.image_url, '')     AS image_url
+FROM `{table_ref}` AS r
+JOIN random_articles AS ra
+  ON r.art_id = ra.article_id
+LEFT JOIN one_image AS oi
+  ON r.art_id = oi.article_id
+LEFT JOIN one_name AS oname
+  ON r.art_id = oname.article_id
 WHERE
   r.franchise = 'set-11'
   AND r.content_lang_code = 'en'
+;
 """
 
+def strip_non_latin(s: str) -> str:
+    # keep letters, digits, spaces, hyphens, periods, commas, ampersands
+    return re.sub(r'[^A-Za-z0-9\s\-\.,&]+', '', s)
 
-# 1) Run the first query to get your N random article IDs
-article_ids = [row.article_id
-               for row in client.query(select_articles_query)]
 
-# 2) Run the second query to get every review + image_url
-query_job = client.query(select_reviews_and_images_query)
+query_job = client.query(select_reviews_and_images_query)  # full_query is the string above
 
-# 3) Build your in-memory structures
+# We'll still bucket reviews by article if you need to, but also capture names & images.
 reviews_by_article = defaultdict(list)
-image_map = {}
+article_names       = {}
+image_map           = {}
 
 for row in query_job:
-    reviews_by_article[row.article_id].append(row.review_text)
-    # overwrite is fine since all rows for same article carry the same image_url
-    image_map[row.article_id] = row.image_url
+    art_id = row.article_id
+    reviews_by_article[art_id].append(row.review_text)
+    article_names[art_id] = strip_non_latin(row.article_name)
+    image_map[art_id]       = row.image_url
 
-print(f"Pulled {sum(len(v) for v in reviews_by_article.values())} reviews across {len(reviews_by_article)} articles")
+print(f"Pulled {sum(len(v) for v in reviews_by_article.values())} reviews across "
+      f"{len(reviews_by_article)} articles")
+
 
 # 4) Write out images.csv
 with open('csv/images.csv', 'w', newline='', encoding='utf-8') as f:
     writer = csv.writer(f)
-    writer.writerow(['article_id', 'image_url'])
+    writer.writerow(['article_id', 'article_name', 'image_url'])
     for art_id in reviews_by_article:
-        writer.writerow([art_id, image_map.get(art_id, '')])
+        writer.writerow([art_id,
+                         article_names[art_id],  # guaranteed to exist
+                         image_map[art_id]])
+
+
 
 # -----------------------------------------------------------------------------
 # WandB setup
@@ -167,7 +194,8 @@ for article_id, reviews in reviews_by_article.items():
     # 1) get the universe of topics for this article
     topics  = get_topics(reviews, llm_client, model_name)
     # 2) get one summary per article
-    summary = get_reviews_summary(reviews, llm_client, model_name)
+    article_name = article_names[article_id]
+    summary = get_reviews_summary(reviews, article_name, llm_client, model_name)
     summary_rows.append([article_id, summary])
 
     print(f"  → Assigning topics to {len(reviews)} reviews")

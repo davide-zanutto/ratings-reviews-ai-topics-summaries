@@ -12,7 +12,7 @@ def load_wandb_artifact():
 
     try: 
         wandb_api_key = st.secrets["wandb"]["api_key"]
-    except (KeyError, RuntimeError):
+    except (KeyError, RuntimeError, FileNotFoundError):
         project = "923326131319"
         secret  = "WANDB_API_KEY_DAVIDE"
         wandb_api_key = get_secret(project, secret)
@@ -42,7 +42,7 @@ PLACEHOLDER    = 'https://placehold.co/300x300?text=No+Image+Available'
 # Load and cache CSV data
 @st.cache_data
 def load_data():
-    articles = pd.read_csv(IMAGES_CSV,    dtype={'article_id': str, 'image_url': str})
+    articles = pd.read_csv(IMAGES_CSV,    dtype={'article_id': str, 'article_name': str, 'image_url': str})
     reviews  = pd.read_csv(REVIEWS_CSV,   dtype={'article_id': str, 'review': str, 'all_topics': str, 'selected_topics': str})
     summaries= pd.read_csv(SUMMARIES_CSV, dtype={'article_id': str, 'summary': str})
 
@@ -69,10 +69,14 @@ a_df, r_df, s_df = load_data()
 # Combine article_ids from reviews only
 all_ids = set(r_df['article_id'])
 combined = pd.DataFrame({'article_id': list(all_ids)})
-combined = combined.merge(
-    a_df[['article_id', 'image_url']],
-    on='article_id',
-    how='left'
+combined = (
+    r_df[['article_id']]
+    .drop_duplicates()
+    .merge(
+        a_df[['article_id', 'image_url', 'article_name']],
+        on='article_id',
+        how='left'
+    )
 )
 
 
@@ -90,7 +94,7 @@ if st.session_state.page == 'select':
         col = cols[i % 3]
         url = row['image_url'] if pd.notna(row['image_url']) and row['image_url'] else PLACEHOLDER
         col.image(url, use_container_width=True)
-        if col.button(f"Select {row['article_id']}", key=row['article_id']):
+        if col.button(f"Select {row['article_name']}", key=row['article_id']):
             st.session_state.article = row['article_id']
             st.session_state.page = 'reviews'
             st.rerun()
@@ -98,7 +102,8 @@ if st.session_state.page == 'select':
 # Page: Reviews & multi-topic filter
 elif st.session_state.page == 'reviews':
     aid = st.session_state.article
-    st.title(f'Reviews for Article {aid}')
+    article_name = a_df[a_df['article_id'] == aid]['article_name'].iloc[0] if not a_df[a_df['article_id'] == aid].empty else "Unknown Article"
+    st.title(f'Reviews for {article_name}')
 
     # Back button
     if st.button('Back to Products'):

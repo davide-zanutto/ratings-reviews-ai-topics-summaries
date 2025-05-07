@@ -1,4 +1,4 @@
-def get_reviews_summary(reviews, llm_client, model):
+def get_reviews_summary(reviews, article_name, llm_client, model):
     messages = [
         {
             "role": "system",
@@ -15,7 +15,8 @@ def get_reviews_summary(reviews, llm_client, model):
             "content": (
                 "Please read carefully the following customer reviews and generate a summary of the main aspects that customers are discussing.\n"
                 "The summary should be as concise as possible, only reporting the main aspects.\n"
-               """Touches all main aspects and topics mentioned in the reviews
+                f"Always refer to the product with its name, which is: {article_name}. If the name is unknown, do not write unknown but speak generally about the product.\n"
+               """The summary should touch all main aspects and topics mentioned in the reviews
                     - Most mentioned aspects should be given priority by writing them first
                     - For each aspect: 
                         - If the overall sentiment for that aspect is positive, mention what customer liked about it
