@@ -4,7 +4,6 @@ import wandb
 from utils.getSecret import get_secret
 import re
 
-# Page config for full-width layout
 st.set_page_config(layout="wide")
 
 @st.cache_resource(show_spinner=False)  # caches the return value once per session
@@ -99,57 +98,85 @@ if st.session_state.page == 'select':
             st.session_state.page = 'reviews'
             st.rerun()
 
-# Page: Reviews & multi-topic filter
-elif st.session_state.page == 'reviews':
+
+# CSS to make buttons equal width
+st.markdown("""
+<style>
+ div.stButton > button {
+     width: 100%;
+ }
+</style>
+""", unsafe_allow_html=True)
+
+# Reviews & single-topic filter with buttons
+if st.session_state.page == 'reviews':
     aid = st.session_state.article
-    article_name = a_df[a_df['article_id'] == aid]['article_name'].iloc[0] if not a_df[a_df['article_id'] == aid].empty else "Unknown Article"
+    article_name = (
+        a_df[a_df['article_id'] == aid]['article_name'].iloc[0]
+        if not a_df[a_df['article_id'] == aid].empty
+        else "Unknown Article"
+    )
     st.title(f'Reviews for {article_name}')
 
     # Back button
-    if st.button('Back to Products'):
+    if st.button('← Back to Products'):
         st.session_state.page = 'select'
         st.session_state.article = None
         st.rerun()
 
+    # Show summary if available
     summary_row = s_df[s_df['article_id'] == str(aid)]
     if not summary_row.empty:
         st.subheader("Summary")
         st.write(summary_row['summary'].iloc[0])
-
         st.markdown("<hr style='border: double 1px;'>", unsafe_allow_html=True)
 
-    # Get all reviews for selected article
+    # Get all reviews and topics
     subset = r_df[r_df['article_id'] == aid]
-    st.subheader("Reviews")
+    st.subheader("Click on a Topic to Filter Reviews")
     if subset.empty:
         st.write('No reviews found for this product.')
         st.stop()
 
-    # Build list of all topics
+    # Build list of unique topics
     topic_options = sorted({topic for topics in subset['all_topics'] for topic in topics})
 
-    # Allow multiple selections
-    selected_topics = st.multiselect('Filter by Topics', options=topic_options)
+    # Build buttons list with "All" first
+    buttons = ["All"] + topic_options
 
-    # Filter reviews: must include all selected topics
-    if not selected_topics:
+    # Create buttons in columns (5 per row)
+    cols = st.columns(5)
+    for i, label in enumerate(buttons):
+        col = cols[i % 5]
+        if col.button(label):
+            if label == "All":
+                st.session_state.selected_topic = None
+            else:
+                st.session_state.selected_topic = label
+
+    st.subheader(f"Customers reviews")
+
+    # Determine which topic to filter
+    selected_topic = st.session_state.get('selected_topic', None)
+
+    # Filter reviews by single selected topic
+    if selected_topic:
+        st.markdown(f"**Showing reviews for topic: _<u>{selected_topic}</u>_**", unsafe_allow_html=True)
+        filtered = subset[subset['selected_topics'].apply(lambda ts: selected_topic in ts)]
+    else:
+        st.markdown("**Showing _<u>all</u>_ reviews**", unsafe_allow_html=True)
         filtered = subset
-    else:
-        filtered = subset[
-            subset['selected_topics']
-                  .apply(lambda ts: all(topic in ts for topic in selected_topics))
-        ]
 
+    # Display reviews
     if filtered.empty:
-        st.write('No reviews match the selected topic combination.')
+        st.write('No reviews match the selected topic.')
     else:
-        for idx, rev in filtered.iterrows():
-            text = rev['review'] or ''
+        for _, rev in filtered.iterrows():
+            text = rev.get('review', '') or ''
             if '.' in text:
                 head, body = text.split('.', 1)
                 st.write(f"**Title:** {head.strip()}")
                 st.write(f"**Text:** {body.strip()}")
             else:
                 st.write(f"**Text:** {text.strip()}")
-            st.write('**Selected Topics:**', ', '.join(rev['selected_topics']))
             st.markdown('---')

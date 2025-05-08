@@ -57,7 +57,7 @@ HAVING
   COUNT(*) BETWEEN 25 AND 1000
 ORDER BY
   RAND()
-LIMIT 30
+LIMIT 9
 """
 
 # 2) Pull every review for those 25 articles, plus a single representative image
